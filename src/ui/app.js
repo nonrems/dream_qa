@@ -823,6 +823,7 @@ function renderTimelineScreen(state) {
   const sourceQuestion = isAnswerScreen ? getAnswerSourceEvent(event) : null;
   const result = isAnswerScreen ? state.session?.results?.[sourceQuestion?.id] ?? buildQuestionResult(sourceQuestion, state.session) : null;
   const explanation = isAnswerScreen && result ? resolveAnswerExplanation(event, result, state) : "";
+  const hasExplanation = Boolean(explanation?.trim());
   const answerSummary = isAnswerScreen && result
     ? `
       <section class="panel answer-panel">
@@ -839,10 +840,14 @@ function renderTimelineScreen(state) {
           </div>
         </div>
       </section>
+      ${hasExplanation
+        ? `
       <section class="panel explanation-panel">
         <div class="panel-title">解説</div>
         <p class="explanation-text">${explanation}</p>
       </section>
+      `
+        : ""}
     `
     : "";
   const choices = event.choices
@@ -885,7 +890,18 @@ function renderTimelineScreen(state) {
               aria-label="${state.session?.progress.timerStopped ? "タイマー再開" : "タイマーストップ"}"
               ${isTimerButtonDisabled ? 'disabled aria-disabled="true"' : ""}
             >
-              ${state.session?.progress.timerStopped ? "▶" : "II"}
+              ${state.session?.progress.timerStopped
+                ? `
+              <svg class="timer-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M8 6.5v11l9-5.5z"></path>
+              </svg>
+              `
+                : `
+              <svg class="timer-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <rect x="7" y="6" width="3.5" height="12" rx="1"></rect>
+                <rect x="13.5" y="6" width="3.5" height="12" rx="1"></rect>
+              </svg>
+              `}
             </button>
           </div>
           ${controls}

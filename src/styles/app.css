@@ -244,6 +244,13 @@ button {
   border-radius: 50%;
 }
 
+.timer-icon {
+  width: 36px;
+  height: 36px;
+  display: block;
+  fill: currentColor;
+}
+
 .choice-button:disabled,
 .primary-button:disabled,
 .secondary-button:disabled,
