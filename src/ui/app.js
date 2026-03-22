@@ -6,6 +6,8 @@ import { resolveMemoEntries } from "../logic/memos.js";
 import { abandonSession, initializeStore, persistRole, resetHistory, startSession, updateHistory, updateSession } from "../state/sessionStore.js";
 import { renderChoiceButtons, renderChoiceGrid, renderMemoList, renderProgressBar } from "./renderers.js";
 
+const EXAM_ANSWER_INPUT_GUARD_MS = 300;
+
 const CHOICE_ORDER_KEYS = {
   "q07-next-gimmick-fan": "q07_gimmick",
   "q08-fan-safe": "q08_safe",
@@ -816,6 +818,11 @@ function renderTimelineScreen(state) {
   const sessionMode = getSessionMode(state.session);
   const isAnswerScreen = event.kind === "answer";
   const isExamFailureAnswer = sessionMode === "exam" && isAnswerScreen;
+  const isExamAnswerInputLocked =
+    sessionMode === "exam" &&
+    event.kind === "question" &&
+    Number.isFinite(state.ui?.examAnswerGuardUntil) &&
+    Date.now() < state.ui.examAnswerGuardUntil;
   const isTimerButtonDisabled = isTimerToggleDisabled(state, event);
   const shouldHideVisualPanel = event.category === "sequence" || event.id === "a17-tower-again";
   const resolvedOptions = resolveRoleBasedChoices(event, state);
@@ -854,7 +861,7 @@ function renderTimelineScreen(state) {
     `
     : "";
   const choices = event.choices
-    ? `<div class="choice-grid ${event.choices.layout}">${renderChoiceGrid(event.choices.layout, resolvedOptions)}</div>`
+    ? `<div class="choice-grid ${event.choices.layout}">${renderChoiceGrid(event.choices.layout, resolvedOptions, null, isExamAnswerInputLocked)}</div>`
     : "";
   const controls = choices || event.allowSkip || isAnswerScreen
     ? `
@@ -953,7 +960,10 @@ function render(state) {
 export function createApp(root) {
   const state = initializeStore();
   state.history = normalizeHistoryShape(state.history);
+  state.ui ??= {};
   let tickHandle = null;
+  let transitionLock = false;
+  let examAnswerGuardTimeoutId = null;
 
   function normalizeSessionShape() {
     if (!state.session) {
@@ -1049,6 +1059,8 @@ export function createApp(root) {
     }
 
     if (!nextEvent) {
+      state.ui.examAnswerGuardUntil = 0;
+      clearExamAnswerGuardTimer();
       persistSessionIfNeeded();
       persistCompletedSessionHistory();
       state.screen = "completion";
@@ -1058,6 +1070,7 @@ export function createApp(root) {
 
     state.session.progress.currentEventId = nextEvent.id;
     resetEventTimer();
+    armExamAnswerGuardIfNeeded(nextEvent);
     persistSessionIfNeeded();
     refresh();
   }
@@ -1144,6 +1157,62 @@ export function createApp(root) {
     }, 200);
   }
 
+  function clearExamAnswerGuardTimer() {
+    if (examAnswerGuardTimeoutId) {
+      clearTimeout(examAnswerGuardTimeoutId);
+      examAnswerGuardTimeoutId = null;
+    }
+  }
+
+  function isExamAnswerInputLocked() {
+    return Number.isFinite(state.ui?.examAnswerGuardUntil) && Date.now() < state.ui.examAnswerGuardUntil;
+  }
+
+  function scheduleExamAnswerGuardRefresh() {
+    clearExamAnswerGuardTimer();
+
+    if (!isExamAnswerInputLocked()) {
+      state.ui.examAnswerGuardUntil = 0;
+      return;
+    }
+
+    examAnswerGuardTimeoutId = window.setTimeout(() => {
+      examAnswerGuardTimeoutId = null;
+      state.ui.examAnswerGuardUntil = 0;
+
+      if (state.screen === "timeline") {
+        refresh();
+      }
+    }, Math.max(0, state.ui.examAnswerGuardUntil - Date.now()));
+  }
+
+  function armExamAnswerGuardIfNeeded(event) {
+    if (!state.session || getSessionMode(state.session) !== "exam" || event?.kind !== "question") {
+      state.ui.examAnswerGuardUntil = 0;
+      clearExamAnswerGuardTimer();
+      return;
+    }
+
+    state.ui.examAnswerGuardUntil = Date.now() + EXAM_ANSWER_INPUT_GUARD_MS;
+    scheduleExamAnswerGuardRefresh();
+  }
+
+  function performTransition(action) {
+    if (transitionLock) {
+      return;
+    }
+
+    transitionLock = true;
+
+    try {
+      action();
+    } finally {
+      queueMicrotask(() => {
+        transitionLock = false;
+      });
+    }
+  }
+
   function refresh() {
     appendCurrentEventMemoIfNeeded();
     ensureTimerRunningWhenToggleDisabled();
@@ -1155,60 +1224,70 @@ export function createApp(root) {
   function bindEvents() {
     root.querySelectorAll('[data-action="choice"]').forEach((button) => {
       button.addEventListener("click", () => {
-        const value = button.dataset.value;
+        performTransition(() => {
+          const value = button.dataset.value;
 
-        if (state.screen === "role-select") {
-          state.settings = persistRole(value);
-          state.roleSelectMode = "change";
-          state.screen = "home";
-          refresh();
-        }
-        if (state.screen === "timeline" && state.session) {
-          const event = getCurrentEvent(state);
-
-          if (event.kind !== "question") {
+          if (state.screen === "role-select") {
+            state.settings = persistRole(value);
+            state.roleSelectMode = "change";
+            state.screen = "home";
+            refresh();
             return;
           }
 
-          state.session.answers[event.id] = value;
-          persistSessionIfNeeded();
-          moveToNextEvent();
-        }
+          if (state.screen === "timeline" && state.session) {
+            const event = getCurrentEvent(state);
+
+            if (event.kind !== "question" || isExamAnswerInputLocked()) {
+              return;
+            }
+
+            state.session.answers[event.id] = value;
+            persistSessionIfNeeded();
+            moveToNextEvent();
+          }
+        });
       });
     });
 
     root.querySelector('[data-action="start-practice-session"]')?.addEventListener("click", () => {
-      const role = state.settings.role;
-      if (!role) {
-        state.roleSelectMode = "initial";
-        state.screen = "role-select";
-        refresh();
-        return;
-      }
+      performTransition(() => {
+        const role = state.settings.role;
+        if (!role) {
+          state.roleSelectMode = "initial";
+          state.screen = "role-select";
+          refresh();
+          return;
+        }
 
-      state.session = startSession(role, "practice");
-      state.screen = "timeline";
-      refresh();
+        state.session = startSession(role, "practice");
+        state.screen = "timeline";
+        refresh();
+      });
     });
 
     root.querySelector('[data-action="start-exam-session"]')?.addEventListener("click", () => {
-      const role = state.settings.role;
-      if (!role) {
-        state.roleSelectMode = "initial";
-        state.screen = "role-select";
-        refresh();
-        return;
-      }
+      performTransition(() => {
+        const role = state.settings.role;
+        if (!role) {
+          state.roleSelectMode = "initial";
+          state.screen = "role-select";
+          refresh();
+          return;
+        }
 
-      state.session = startSession(role, "exam");
-      state.screen = "timeline";
-      refresh();
+        state.session = startSession(role, "exam");
+        state.screen = "timeline";
+        refresh();
+      });
     });
 
     root.querySelector('[data-action="change-role"]')?.addEventListener("click", () => {
-      state.roleSelectMode = "change";
-      state.screen = "role-select";
-      refresh();
+      performTransition(() => {
+        state.roleSelectMode = "change";
+        state.screen = "role-select";
+        refresh();
+      });
     });
 
     root.querySelector('[data-action="reset-history"]')?.addEventListener("click", () => {
@@ -1221,8 +1300,10 @@ export function createApp(root) {
     });
 
     root.querySelector('[data-action="keep-role"]')?.addEventListener("click", () => {
-      state.screen = "home";
-      refresh();
+      performTransition(() => {
+        state.screen = "home";
+        refresh();
+      });
     });
 
     root.querySelector('[data-action="go-home"]')?.addEventListener("click", () => {
@@ -1230,51 +1311,61 @@ export function createApp(root) {
         return;
       }
 
-      abandonSession();
-      state.session = null;
-      state.screen = "home";
-      refresh();
+      performTransition(() => {
+        abandonSession();
+        state.session = null;
+        state.screen = "home";
+        refresh();
+      });
     });
 
     root.querySelector('[data-action="complete-home"]')?.addEventListener("click", () => {
-      abandonSession();
-      state.session = null;
-      state.screen = "home";
-      refresh();
+      performTransition(() => {
+        abandonSession();
+        state.session = null;
+        state.screen = "home";
+        refresh();
+      });
     });
 
     root.querySelector('[data-action="exam-home"]')?.addEventListener("click", () => {
-      abandonSession();
-      state.session = null;
-      state.screen = "home";
-      refresh();
+      performTransition(() => {
+        abandonSession();
+        state.session = null;
+        state.screen = "home";
+        refresh();
+      });
     });
 
     root.querySelector('[data-action="toggle-timer"]')?.addEventListener("click", () => {
-      if (!state.session) {
-        return;
-      }
+      performTransition(() => {
+        if (!state.session) {
+          return;
+        }
 
-      if (isTimerToggleDisabled(state)) {
-        return;
-      }
+        if (isTimerToggleDisabled(state)) {
+          return;
+        }
 
-      if (state.session.progress.timerStopped) {
-        const pausedAt = state.session.progress.eventPausedAt ?? Date.now();
-        state.session.progress.eventTotalPausedMs += Date.now() - pausedAt;
-        state.session.progress.eventPausedAt = null;
-        state.session.progress.timerStopped = false;
-      } else {
-        state.session.progress.eventPausedAt = Date.now();
-        state.session.progress.timerStopped = true;
-      }
+        if (state.session.progress.timerStopped) {
+          const pausedAt = state.session.progress.eventPausedAt ?? Date.now();
+          state.session.progress.eventTotalPausedMs += Date.now() - pausedAt;
+          state.session.progress.eventPausedAt = null;
+          state.session.progress.timerStopped = false;
+        } else {
+          state.session.progress.eventPausedAt = Date.now();
+          state.session.progress.timerStopped = true;
+        }
 
-      persistSessionIfNeeded();
-      refresh();
+        persistSessionIfNeeded();
+        refresh();
+      });
     });
 
     root.querySelector('[data-action="next-event"]')?.addEventListener("click", () => {
-      moveToNextEvent();
+      performTransition(() => {
+        moveToNextEvent();
+      });
     });
   }
 

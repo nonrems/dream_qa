@@ -35,20 +35,24 @@ function renderChoiceLabel(option) {
   return escapeHtml(value);
 }
 
-export function renderChoiceButtons(options, selectedValue = null) {
+function renderChoiceButton(option, selectedValue = null, disabled = false) {
+  const selectedClass = selectedValue === option ? " is-selected" : "";
+  const disabledAttrs = disabled ? ' disabled aria-disabled="true"' : "";
+
+  return `
+    <button class="choice-button${selectedClass}" data-action="choice" data-value="${escapeHtml(option)}"${disabledAttrs}>
+      ${renderChoiceLabel(option)}
+    </button>
+  `;
+}
+
+export function renderChoiceButtons(options, selectedValue = null, disabled = false) {
   return options
-    .map((option) => {
-      const selectedClass = selectedValue === option ? " is-selected" : "";
-      return `
-        <button class="choice-button${selectedClass}" data-action="choice" data-value="${escapeHtml(option)}">
-          ${renderChoiceLabel(option)}
-        </button>
-      `;
-    })
+    .map((option) => renderChoiceButton(option, selectedValue, disabled))
     .join("");
 }
 
-export function renderChoiceGrid(layout, options, selectedValue = null) {
+export function renderChoiceGrid(layout, options, selectedValue = null, disabled = false) {
   if (layout === "grid-position-8") {
     const arranged = ["1", "A", "2", "D", null, "B", "4", "C", "3"];
 
@@ -58,17 +62,12 @@ export function renderChoiceGrid(layout, options, selectedValue = null) {
           return `<div class="choice-grid-gap" aria-hidden="true"></div>`;
         }
 
-        const selectedClass = selectedValue === option ? " is-selected" : "";
-        return `
-          <button class="choice-button${selectedClass}" data-action="choice" data-value="${escapeHtml(option)}">
-            ${renderChoiceLabel(option)}
-          </button>
-        `;
+        return renderChoiceButton(option, selectedValue, disabled);
       })
       .join("");
   }
 
-  return renderChoiceButtons(options, selectedValue);
+  return renderChoiceButtons(options, selectedValue, disabled);
 }
 
 export function renderMemoList(memoLog) {
