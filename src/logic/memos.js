@@ -26,11 +26,11 @@ function getShapeLabel(mimicShape) {
 
 function getReplicaMemo(replicaPattern) {
   if (replicaPattern === "ac_stack") {
-    return "頭割り→円範囲→頭割り→円範囲";
+    return "頭割り先";
   }
 
   if (replicaPattern === "ac_circle") {
-    return "円範囲→頭割り→円範囲→頭割り";
+    return "円範囲先";
   }
 
   return null;
