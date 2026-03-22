@@ -708,7 +708,7 @@ function renderHomeScreen(state) {
     <section class="screen-card">
       <header class="screen-header">
         <p class="eyebrow">Main</p>
-        <h1 class="screen-title">ドリーム練習</h1>
+        <h1 class="screen-title">ドリーム予習</h1>
         <p class="screen-subtitle">(:3[__] ＜ しんどい</p>
       </header>
       <div class="summary-box">
@@ -723,11 +723,11 @@ function renderHomeScreen(state) {
         </div>
       </div>
       <div class="summary-box mode-box mode-box-exam">
-        <p class="screen-subtitle">ミスしたら即終了の腕試し用です。</p>
+        <p class="screen-subtitle mode-description">ミスしたら即終了の腕試し用です。</p>
         <button class="primary-button" data-action="start-exam-session">本番モードを開始</button>
       </div>
       <div class="summary-box mode-box mode-box-practice">
-        <p class="screen-subtitle">まずはこちらから。正答率が集計されます。</p>
+        <p class="screen-subtitle mode-description">まずはこちらから。正答率が集計されます。</p>
         <button class="primary-button" data-action="start-practice-session">練習モードを開始</button>
       </div>
       <div class="summary-box">

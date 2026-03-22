@@ -91,6 +91,10 @@ button {
   line-height: 1.5;
 }
 
+.mode-description {
+  font-size: 0.9rem;
+}
+
 .question-panel,
 .controls-panel {
   display: grid;
@@ -211,6 +215,7 @@ button {
 .choice-button,
 .primary-button {
   background: linear-gradient(180deg, #ffffff 0%, #f7f7f8 100%);
+  border-color: rgba(28, 35, 44, 0.096);
   color: var(--text);
   font-size: 1rem;
   font-weight: 600;
