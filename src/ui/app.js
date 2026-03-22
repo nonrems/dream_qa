@@ -702,7 +702,7 @@ function renderHomeScreen(state) {
         `,
       )
       .join("")
-    : `<div class="summary-row"><span>正答率一覧</span><strong>まだ履歴がありません</strong></div>`;
+    : `<p class="accuracy-empty">まだ履歴がありません</p>`;
 
   return `
     <section class="screen-card">
@@ -759,7 +759,7 @@ function renderAccuracyList(categoryStats) {
         `,
       )
       .join("")
-    : `<div class="summary-row"><span>正答率一覧</span><strong>まだ履歴がありません</strong></div>`;
+    : `<p class="accuracy-empty">まだ履歴がありません</p>`;
 }
 
 function renderCompletionScreen(state) {
@@ -791,6 +791,8 @@ function renderCompletionScreen(state) {
 }
 
 function renderRoleSelectScreen(state) {
+  const showKeepButton = state.roleSelectMode === "change";
+
   return `
     <section class="screen-card">
       <header class="screen-header">
@@ -800,7 +802,7 @@ function renderRoleSelectScreen(state) {
       </header>
       <div class="choice-grid grid-8">
         ${renderChoiceButtons(["MT", "ST", "H1", "H2", "D1", "D2", "D3", "D4"], state.settings.role)}
-        <button class="secondary-button role-keep-button" data-action="keep-role">変更しない</button>
+        ${showKeepButton ? '<button class="secondary-button role-keep-button" data-action="keep-role">変更しない</button>' : ""}
       </div>
     </section>
   `;
@@ -1138,6 +1140,7 @@ export function createApp(root) {
 
         if (state.screen === "role-select") {
           state.settings = persistRole(value);
+          state.roleSelectMode = "change";
           state.screen = "home";
           refresh();
         }
@@ -1158,6 +1161,7 @@ export function createApp(root) {
     root.querySelector('[data-action="start-practice-session"]')?.addEventListener("click", () => {
       const role = state.settings.role;
       if (!role) {
+        state.roleSelectMode = "initial";
         state.screen = "role-select";
         refresh();
         return;
@@ -1171,6 +1175,7 @@ export function createApp(root) {
     root.querySelector('[data-action="start-exam-session"]')?.addEventListener("click", () => {
       const role = state.settings.role;
       if (!role) {
+        state.roleSelectMode = "initial";
         state.screen = "role-select";
         refresh();
         return;
@@ -1182,6 +1187,7 @@ export function createApp(root) {
     });
 
     root.querySelector('[data-action="change-role"]')?.addEventListener("click", () => {
+      state.roleSelectMode = "change";
       state.screen = "role-select";
       refresh();
     });

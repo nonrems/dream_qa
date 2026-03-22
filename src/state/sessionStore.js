@@ -47,12 +47,14 @@ export function initializeStore() {
   const settings = loadSettings();
   const session = loadSession();
   const history = loadHistory();
+  const hasRole = Boolean(settings.role);
 
   return {
     settings,
     history,
     session,
-    screen: session ? "timeline" : settings.role ? "home" : "role-select",
+    screen: session ? "timeline" : hasRole ? "home" : "role-select",
+    roleSelectMode: hasRole ? "change" : "initial",
   };
 }
 
