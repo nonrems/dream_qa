@@ -3,7 +3,7 @@ import { TARGET_MARKER_ASSETS } from "../data/assets.js";
 import { resolveCorrectAnswer } from "../logic/deriveAnswers.js";
 import { buildGenericExplanation } from "../logic/explanations.js";
 import { resolveMemoEntries } from "../logic/memos.js";
-import { abandonSession, initializeStore, persistRole, startSession, updateHistory, updateSession } from "../state/sessionStore.js";
+import { abandonSession, initializeStore, persistRole, resetHistory, startSession, updateHistory, updateSession } from "../state/sessionStore.js";
 import { renderChoiceButtons, renderChoiceGrid, renderMemoList, renderProgressBar } from "./renderers.js";
 
 const CHOICE_ORDER_KEYS = {
@@ -702,7 +702,7 @@ function renderHomeScreen(state) {
         `,
       )
       .join("")
-    : `<p class="accuracy-empty">まだ履歴がありません</p>`;
+    : `<p class="accuracy-empty">まだ修正履歴がありません</p>`;
 
   return `
     <section class="screen-card">
@@ -716,7 +716,7 @@ function renderHomeScreen(state) {
           <span>現在のロール</span>
           <div class="inline-role-actions">
             <strong>${role}</strong>
-            <button class="ghost-icon-button compact-icon-button" data-action="change-role" aria-label="ロールを変更">
+            <button class="secondary-button summary-action-button" data-action="change-role" aria-label="ロールを変更">
               変更
             </button>
           </div>
@@ -731,7 +731,10 @@ function renderHomeScreen(state) {
         <button class="primary-button" data-action="start-practice-session">練習モードを開始</button>
       </div>
       <div class="summary-box">
-        <div class="summary-row"><span>練習モードの正答率一覧</span></div>
+        <div class="summary-row">
+          <span>練習モードの正答率一覧</span>
+          <button class="secondary-button summary-action-button" data-action="reset-history">リセット</button>
+        </div>
         <div class="accuracy-list">${categoryStatsMarkup}</div>
       </div>
     </section>
@@ -759,7 +762,7 @@ function renderAccuracyList(categoryStats) {
         `,
       )
       .join("")
-    : `<p class="accuracy-empty">まだ履歴がありません</p>`;
+    : `<p class="accuracy-empty">まだ修正履歴がありません</p>`;
 }
 
 function renderCompletionScreen(state) {
@@ -1205,6 +1208,15 @@ export function createApp(root) {
     root.querySelector('[data-action="change-role"]')?.addEventListener("click", () => {
       state.roleSelectMode = "change";
       state.screen = "role-select";
+      refresh();
+    });
+
+    root.querySelector('[data-action="reset-history"]')?.addEventListener("click", () => {
+      if (!window.confirm("練習モードの正答率一覧をリセットしますか？")) {
+        return;
+      }
+
+      state.history = resetHistory();
       refresh();
     });
 

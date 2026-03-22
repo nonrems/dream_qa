@@ -1,6 +1,7 @@
 import { TIMELINE_DEFINITION } from "../data/timeline.js";
 import { generateChoiceOrders, generateSessionPattern } from "../logic/generateSession.js";
 import {
+  clearHistory,
   clearSession,
   loadHistory,
   loadSession,
@@ -80,4 +81,9 @@ export function abandonSession() {
 
 export function updateHistory(history) {
   saveHistory(history);
+}
+
+export function resetHistory() {
+  clearHistory();
+  return { sessions: [] };
 }

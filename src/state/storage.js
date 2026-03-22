@@ -44,3 +44,7 @@ export function loadHistory() {
 export function saveHistory(history) {
   writeJson(STORAGE_KEYS.history, history);
 }
+
+export function clearHistory() {
+  localStorage.removeItem(STORAGE_KEYS.history);
+}
