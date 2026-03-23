@@ -1248,6 +1248,7 @@ export function createApp(root) {
             return;
           }
         } else {
+          appendMemoForEventIfNeeded(answerEvent);
           nextEvent = answerEvent ? getNextPlayableEvent(answerEvent.id) : null;
         }
       } else {
@@ -1270,14 +1271,13 @@ export function createApp(root) {
     void activateEvent(nextEvent);
   }
 
-  function appendCurrentEventMemoIfNeeded() {
-    if (!state.session || state.screen !== "timeline") {
+  function appendMemoForEventIfNeeded(event) {
+    if (!state.session || state.screen !== "timeline" || !event) {
       return;
     }
 
     normalizeSessionShape();
-    const event = getCurrentEvent(state);
-    const memoAppend = event?.memoAppend;
+    const memoAppend = event.memoAppend;
 
     if (!memoAppend?.resolver) {
       return;
@@ -1296,6 +1296,10 @@ export function createApp(root) {
     }
 
     persistSessionIfNeeded();
+  }
+
+  function appendCurrentEventMemoIfNeeded() {
+    appendMemoForEventIfNeeded(getCurrentEvent(state));
   }
 
   function advanceByTimer() {
