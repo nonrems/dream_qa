@@ -19,17 +19,17 @@ const HOME_SUBTITLE_VARIANTS = [
 ];
 
 const EXAM_CLEAR_HOME_SUBTITLE_VARIANTS = [
-  "ロットのお時間です",
-  "俺たちがチャンピオンだ！",
-  "オープンカーを乗り回そう",
-  "記念撮影のエモート決めとこ",
+  "🎲ロットのお時間です",
+  "🏆俺たちがチャンピオンだ！",
+  "😎オープンカーを乗り回そう",
+  "📸記念撮影のエモート決めた？",
 ];
 
 const EXAM_FAILURE_HOME_SUBTITLE_VARIANTS = [
-  "なんだ夢か",
-  "よしだあああ",
-  "もう一回遊べるドン",
-  "どんまい",
+  "🛌なんだ夢か",
+  "📣よしだあああ",
+  "🥁もう一回遊べるドン",
+  "🩹どんまい",
 ];
 
 const CHOICE_ORDER_KEYS = {
