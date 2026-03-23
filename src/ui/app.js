@@ -54,6 +54,8 @@ const FIELD_VISUAL_QUESTION_IDS = new Set([
   "q25-stack-position-second",
 ]);
 
+const IMAGE_PRELOAD_CACHE = new Map();
+
 function resolveAccuracyCategory(questionId, fallbackCategory) {
   if (questionId === "q03-final-position") {
     return "opening_position";
@@ -255,20 +257,46 @@ function resolveCurrentTargetMarkerSrc(state) {
   return TARGET_MARKER_ASSETS[markerKey] ?? null;
 }
 
-function resolveVisualPanelContent(event, state) {
+function preloadImage(src, fetchPriority = "auto") {
+  if (!src) {
+    return Promise.resolve(null);
+  }
+
+  if (IMAGE_PRELOAD_CACHE.has(src)) {
+    return IMAGE_PRELOAD_CACHE.get(src);
+  }
+
+  const preloadPromise = new Promise((resolve) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.fetchPriority = fetchPriority;
+    image.onload = () => resolve(src);
+    image.onerror = () => resolve(null);
+    image.src = src;
+
+    if (image.complete) {
+      resolve(src);
+    }
+  });
+
+  IMAGE_PRELOAD_CACHE.set(src, preloadPromise);
+  return preloadPromise;
+}
+
+function resolveVisualImageSpec(event, state) {
   if (!event) {
-    return `<div class="visual-placeholder">Visual Placeholder</div>`;
+    return null;
   }
 
   if (event.id === "f01-mimic-shape") {
     const mimicShape = state.session?.pattern?.mimicShape;
 
     if (mimicShape === "x") {
-      return `<img class="visual-image" src="./src/img/forecast1_x.png" alt="X字予告画像" />`;
+      return { src: "./src/img/forecast1_x.png", alt: "X字予告画像" };
     }
 
     if (mimicShape === "cross") {
-      return `<img class="visual-image" src="./src/img/forecast1_cross.png" alt="十字予告画像" />`;
+      return { src: "./src/img/forecast1_cross.png", alt: "十字予告画像" };
     }
   }
 
@@ -277,7 +305,10 @@ function resolveVisualPanelContent(event, state) {
     const mimicCellPosition = rawPosition == null ? null : String(rawPosition).trim();
 
     if (mimicCellPosition) {
-      return `<img class="visual-image" src="./src/img/forecast2_${mimicCellPosition.toLowerCase()}.png" alt="模倣細胞位置画像" />`;
+      return {
+        src: `./src/img/forecast2_${mimicCellPosition.toLowerCase()}.png`,
+        alt: "模倣細胞位置画像",
+      };
     }
   }
 
@@ -293,7 +324,7 @@ function resolveVisualPanelContent(event, state) {
 
     if (mimicCellPosition) {
       const imageName = swappedImageMap[mimicCellPosition] ?? `forecast2_${mimicCellPosition.toLowerCase()}.png`;
-      return `<img class="visual-image" src="./src/img/${imageName}" alt="最終立ち位置画像" />`;
+      return { src: `./src/img/${imageName}`, alt: "最終立ち位置画像" };
     }
   }
 
@@ -301,11 +332,11 @@ function resolveVisualPanelContent(event, state) {
     const fanSafe = state.session?.pattern?.fanSafe;
 
     if (fanSafe === "12") {
-      return `<img class="visual-image" src="./src/img/forecast4_12.png" alt="12安置予告画像" />`;
+      return { src: "./src/img/forecast4_12.png", alt: "12安置予告画像" };
     }
 
     if (fanSafe === "34") {
-      return `<img class="visual-image" src="./src/img/forecast4_34.png" alt="34安置予告画像" />`;
+      return { src: "./src/img/forecast4_34.png", alt: "34安置予告画像" };
     }
   }
 
@@ -313,11 +344,11 @@ function resolveVisualPanelContent(event, state) {
     const replicaPattern = state.session?.pattern?.replicaPattern;
 
     if (replicaPattern === "ac_stack") {
-      return `<img class="visual-image" src="./src/img/forecast5_atama.png" alt="頭割り開始予告画像" />`;
+      return { src: "./src/img/forecast5_atama.png", alt: "頭割り開始予告画像" };
     }
 
     if (replicaPattern === "ac_circle") {
-      return `<img class="visual-image" src="./src/img/forecast5_en.png" alt="円範囲開始予告画像" />`;
+      return { src: "./src/img/forecast5_en.png", alt: "円範囲開始予告画像" };
     }
   }
 
@@ -325,40 +356,49 @@ function resolveVisualPanelContent(event, state) {
     const replicaPattern = state.session?.pattern?.replicaPattern;
 
     if (replicaPattern === "ac_stack") {
-      return `<img class="visual-image" src="./src/img/forecast5_atama.png" alt="頭割り開始予告画像" />`;
+      return { src: "./src/img/forecast5_atama.png", alt: "頭割り開始予告画像" };
     }
 
     if (replicaPattern === "ac_circle") {
-      return `<img class="visual-image" src="./src/img/forecast5_atama_change.png" alt="円範囲開始解答画像" />`;
+      return { src: "./src/img/forecast5_atama_change.png", alt: "円範囲開始解答画像" };
     }
   }
 
   if (event.id === "f09-tower" || event.id === "q10-tower-assignment" || event.id === "q17-tower-again") {
     const towerForecastBase = state.session?.pattern?.towerForecastBase ?? "1";
     const towerForecastLightPattern = state.session?.pattern?.towerForecastLightPattern ?? "1";
-    return `<img class="visual-image" src="./src/img/forecast9_${towerForecastBase}_${towerForecastLightPattern}.png" alt="塔予告画像" />`;
+    return {
+      src: `./src/img/forecast9_${towerForecastBase}_${towerForecastLightPattern}.png`,
+      alt: "塔予告画像",
+    };
   }
 
   if (event.id === "a10-tower-assignment" || event.id === "a17-tower-again") {
     const towerForecastBase = state.session?.pattern?.towerForecastBase ?? "1";
     const towerForecastLightPattern = state.session?.pattern?.towerForecastLightPattern ?? "1";
-    return `<img class="visual-image" src="./src/img/forecast9_${towerForecastBase}_${towerForecastLightPattern}_answer.png" alt="塔解答画像" />`;
+    return {
+      src: `./src/img/forecast9_${towerForecastBase}_${towerForecastLightPattern}_answer.png`,
+      alt: "塔解答画像",
+    };
   }
 
   if (["a12-position-first", "a13-position-second", "a14-position-third", "a15-position-fourth"].includes(event.id)) {
     const replicaPosition = resolveCorrectAnswer(event.answerResolver, state.session?.pattern, state.session?.role);
 
     if (replicaPosition) {
-      return `<img class="visual-image" src="./src/img/replica_${String(replicaPosition).toLowerCase()}.png" alt="レプリカ位置画像" />`;
+      return {
+        src: `./src/img/replica_${String(replicaPosition).toLowerCase()}.png`,
+        alt: "レプリカ位置画像",
+      };
     }
   }
 
   if (event.id === "q18-near-far-position") {
-    return `<img class="visual-image" src="./src/img/forecast18.png" alt="ニアファー位置画像" />`;
+    return { src: "./src/img/forecast18.png", alt: "ニアファー位置画像" };
   }
 
   if (event.id === "a18-near-far-position") {
-    return `<img class="visual-image" src="./src/img/forecast18_answer.png" alt="ニアファー解答画像" />`;
+    return { src: "./src/img/forecast18_answer.png", alt: "ニアファー解答画像" };
   }
 
   if (event.id === "f19-fan-move") {
@@ -366,19 +406,19 @@ function resolveVisualPanelContent(event, state) {
     const islandSafe = state.session?.pattern?.islandSafe;
 
     if (warpDirection === "north" && islandSafe === "D") {
-      return `<img class="visual-image" src="./src/img/forecast19_1.png" alt="北ワープD安置画像" />`;
+      return { src: "./src/img/forecast19_1.png", alt: "北ワープD安置画像" };
     }
 
     if (warpDirection === "south" && islandSafe === "D") {
-      return `<img class="visual-image" src="./src/img/forecast19_2.png" alt="南ワープD安置画像" />`;
+      return { src: "./src/img/forecast19_2.png", alt: "南ワープD安置画像" };
     }
 
     if (warpDirection === "north" && islandSafe === "B") {
-      return `<img class="visual-image" src="./src/img/forecast19_3.png" alt="北ワープB安置画像" />`;
+      return { src: "./src/img/forecast19_3.png", alt: "北ワープB安置画像" };
     }
 
     if (warpDirection === "south" && islandSafe === "B") {
-      return `<img class="visual-image" src="./src/img/forecast19_4.png" alt="南ワープB安置画像" />`;
+      return { src: "./src/img/forecast19_4.png", alt: "南ワープB安置画像" };
     }
   }
 
@@ -386,47 +426,96 @@ function resolveVisualPanelContent(event, state) {
     const positionAnswer = resolveCorrectAnswer(event.answerResolver, state.session?.pattern, state.session?.role);
 
     if (positionAnswer === "1" || positionAnswer === "4") {
-      return `<img class="visual-image" src="./src/img/position_14.png" alt="1または4位置画像" />`;
+      return { src: "./src/img/position_14.png", alt: "1または4位置画像" };
     }
 
     if (positionAnswer === "A" || positionAnswer === "D") {
-      return `<img class="visual-image" src="./src/img/position_ad.png" alt="AまたはD位置画像" />`;
+      return { src: "./src/img/position_ad.png", alt: "AまたはD位置画像" };
     }
   }
 
   if (event.id === "q23-fan-safe-numbered") {
-    return `<img class="visual-image" src="./src/img/question23.png" alt="23問目画像" />`;
+    return { src: "./src/img/question23.png", alt: "23問目画像" };
   }
 
   if (event.id === "a23-fan-safe-numbered") {
     const answer = resolveCorrectAnswer(event.answerResolver, state.session?.pattern, state.session?.role);
 
     if (["1", "2", "3", "4"].includes(String(answer))) {
-      return `<img class="visual-image" src="./src/img/question23_answer${String(answer)}.png" alt="23問目解答画像" />`;
+      return {
+        src: `./src/img/question23_answer${String(answer)}.png`,
+        alt: "23問目解答画像",
+      };
     }
   }
 
   if (event.id === "q27-final-safe") {
-    return `<img class="visual-image" src="./src/img/question27.png" alt="27問目画像" />`;
+    return { src: "./src/img/question27.png", alt: "27問目画像" };
   }
 
   if (event.id === "a27-final-safe") {
     const answer = resolveCorrectAnswer(event.answerResolver, state.session?.pattern, state.session?.role);
 
     if (String(answer) === "1" || String(answer) === "2") {
-      return `<img class="visual-image" src="./src/img/question27_answer${String(answer)}.png" alt="27問目解答画像" />`;
+      return {
+        src: `./src/img/question27_answer${String(answer)}.png`,
+        alt: "27問目解答画像",
+      };
     }
   }
 
   if (event.kind === "question" && FIELD_VISUAL_QUESTION_IDS.has(event.id)) {
-    return `<img class="visual-image" src="./src/img/field.png" alt="フィールド画像" />`;
+    return { src: "./src/img/field.png", alt: "フィールド画像" };
   }
 
-  if (event.kind === "answer") {
-    return `<div class="visual-placeholder">Visual Placeholder</div>`;
+  return null;
+}
+
+function resolveVisualPanelContent(event, state) {
+  const visualImage = resolveVisualImageSpec(event, state);
+
+  if (visualImage) {
+    return `<img class="visual-image" src="${visualImage.src}" alt="${visualImage.alt}" loading="eager" decoding="async" fetchpriority="high" />`;
   }
 
   return `<div class="visual-placeholder">Visual Placeholder</div>`;
+}
+
+function collectEventImageSources(event, state) {
+  if (!event) {
+    return [];
+  }
+
+  const sources = [];
+  const markerSrc = event.id !== "f01-mimic-shape" ? resolveCurrentTargetMarkerSrc(state) : null;
+  const visualImage = resolveVisualImageSpec(event, state);
+
+  if (markerSrc) {
+    sources.push(markerSrc);
+  }
+
+  if (visualImage?.src) {
+    sources.push(visualImage.src);
+  }
+
+  return [...new Set(sources)];
+}
+
+function collectSessionImageSources(session) {
+  if (!session) {
+    return [];
+  }
+
+  const sessionState = { session };
+  const sources = new Set();
+
+  for (const event of TIMELINE_DEFINITION) {
+    for (const src of collectEventImageSources(event, sessionState)) {
+      sources.add(src);
+    }
+  }
+
+  return [...sources];
 }
 
 function getAnswerSourceEvent(event) {
@@ -888,7 +977,7 @@ function renderTimelineScreen(state) {
           <div class="sticky-row">
             <div class="sticky-marker" aria-label="ターゲットマーカー">
               <div class="marker-placeholder marker-placeholder-inline">
-                ${shouldShowMarkerImage ? `<img class="marker-image" src="${markerSrc}" alt="ターゲットマーカー" />` : "Marker"}
+                ${shouldShowMarkerImage ? `<img class="marker-image" src="${markerSrc}" alt="ターゲットマーカー" loading="eager" decoding="async" fetchpriority="high" />` : "Marker"}
               </div>
             </div>
             <div class="sticky-progress">
@@ -964,6 +1053,7 @@ export function createApp(root) {
   let tickHandle = null;
   let transitionLock = false;
   let examAnswerGuardTimeoutId = null;
+  let isPreparingEvent = false;
 
   function normalizeSessionShape() {
     if (!state.session) {
@@ -1024,8 +1114,62 @@ export function createApp(root) {
     persistSessionIfNeeded();
   }
 
-  function moveToNextEvent() {
+  function primeSessionImages() {
     if (!state.session) {
+      return;
+    }
+
+    const sources = collectSessionImageSources(state.session);
+    sources.forEach((src, index) => {
+      void preloadImage(src, index < 4 ? "high" : "auto");
+    });
+  }
+
+  async function prepareEventAssets(event) {
+    if (!event) {
+      return;
+    }
+
+    const sources = collectEventImageSources(event, state);
+    if (!sources.length) {
+      return;
+    }
+
+    await Promise.all(sources.map((src) => preloadImage(src, "high")));
+  }
+
+  async function activateEvent(nextEvent) {
+    if (!state.session || !nextEvent) {
+      return;
+    }
+
+    isPreparingEvent = true;
+
+    if (tickHandle) {
+      clearInterval(tickHandle);
+      tickHandle = null;
+    }
+
+    try {
+      state.session.progress.currentEventId = nextEvent.id;
+      primeSessionImages();
+      await prepareEventAssets(nextEvent);
+
+      if (!state.session || state.session.progress.currentEventId !== nextEvent.id) {
+        return;
+      }
+
+      resetEventTimer();
+      armExamAnswerGuardIfNeeded(nextEvent);
+      persistSessionIfNeeded();
+      refresh();
+    } finally {
+      isPreparingEvent = false;
+    }
+  }
+
+  function moveToNextEvent() {
+    if (!state.session || isPreparingEvent) {
       return;
     }
 
@@ -1042,10 +1186,7 @@ export function createApp(root) {
       if (sessionMode === "exam") {
         if (!result?.isCorrect) {
           if (answerEvent) {
-            state.session.progress.currentEventId = answerEvent.id;
-            resetEventTimer();
-            persistSessionIfNeeded();
-            refresh();
+            void activateEvent(answerEvent);
             return;
           }
         } else {
@@ -1068,11 +1209,7 @@ export function createApp(root) {
       return;
     }
 
-    state.session.progress.currentEventId = nextEvent.id;
-    resetEventTimer();
-    armExamAnswerGuardIfNeeded(nextEvent);
-    persistSessionIfNeeded();
-    refresh();
+    void activateEvent(nextEvent);
   }
 
   function appendCurrentEventMemoIfNeeded() {
@@ -1104,7 +1241,7 @@ export function createApp(root) {
   }
 
   function advanceByTimer() {
-    if (!state.session || state.screen !== "timeline") {
+    if (!state.session || state.screen !== "timeline" || isPreparingEvent) {
       return;
     }
 
@@ -1262,7 +1399,8 @@ export function createApp(root) {
 
         state.session = startSession(role, "practice");
         state.screen = "timeline";
-        refresh();
+        primeSessionImages();
+        void activateEvent(getCurrentEvent(state));
       });
     });
 
@@ -1278,7 +1416,8 @@ export function createApp(root) {
 
         state.session = startSession(role, "exam");
         state.screen = "timeline";
-        refresh();
+        primeSessionImages();
+        void activateEvent(getCurrentEvent(state));
       });
     });
 
@@ -1367,6 +1506,12 @@ export function createApp(root) {
         moveToNextEvent();
       });
     });
+  }
+
+  if (state.session && state.screen === "timeline") {
+    primeSessionImages();
+    void activateEvent(getCurrentEvent(state));
+    return;
   }
 
   refresh();
