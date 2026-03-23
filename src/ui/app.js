@@ -14,6 +14,22 @@ const HOME_SUBTITLE_VARIANTS = [
   "先人たち、ありがとね",
   "マーカー泥棒多発！",
   "完全に理解した",
+  "光と闇がそなわり最強に見える",
+  "なるほどわからん",
+];
+
+const EXAM_CLEAR_HOME_SUBTITLE_VARIANTS = [
+  "ロットのお時間です",
+  "俺たちがチャンピオンだ！",
+  "オープンカーを乗り回そう",
+  "記念撮影のエモート決めとこ",
+];
+
+const EXAM_FAILURE_HOME_SUBTITLE_VARIANTS = [
+  "なんだ夢か",
+  "よしだあああ",
+  "もう一回遊べるドン",
+  "どんまい",
 ];
 
 const CHOICE_ORDER_KEYS = {
@@ -778,11 +794,40 @@ function summarizeSessionCategories(session) {
   return summarizeWeakCategories(pseudoHistory);
 }
 
+function pickRandomSubtitle(variants) {
+  if (!Array.isArray(variants) || variants.length === 0) {
+    return "";
+  }
+
+  return variants[Math.floor(Math.random() * variants.length)] ?? variants[0];
+}
+
+function resolveHomeSubtitle(state) {
+  const subtitleMode = state.ui?.homeSubtitleMode ?? "default";
+  const variantMap = {
+    default: HOME_SUBTITLE_VARIANTS,
+    examClear: EXAM_CLEAR_HOME_SUBTITLE_VARIANTS,
+    examFailure: EXAM_FAILURE_HOME_SUBTITLE_VARIANTS,
+  };
+  const variants = variantMap[subtitleMode] ?? HOME_SUBTITLE_VARIANTS;
+
+  if (state.ui?.homeSubtitleText && state.ui?.homeSubtitleResolvedFor === subtitleMode) {
+    return state.ui.homeSubtitleText;
+  }
+
+  const subtitle = pickRandomSubtitle(variants);
+
+  state.ui ??= {};
+  state.ui.homeSubtitleText = subtitle;
+  state.ui.homeSubtitleResolvedFor = subtitleMode;
+
+  return subtitle;
+}
+
 function renderHomeScreen(state) {
   const role = state.settings.role ?? "未設定";
   const categoryStats = summarizeWeakCategories(state.history);
-  const subtitle =
-    HOME_SUBTITLE_VARIANTS[Math.floor(Math.random() * HOME_SUBTITLE_VARIANTS.length)] ?? HOME_SUBTITLE_VARIANTS[0];
+  const subtitle = resolveHomeSubtitle(state);
   const categoryStatsMarkup = categoryStats.length
     ? categoryStats
       .map(
@@ -1060,6 +1105,9 @@ export function createApp(root) {
   const state = initializeStore();
   state.history = normalizeHistoryShape(state.history);
   state.ui ??= {};
+  state.ui.homeSubtitleMode ??= "default";
+  state.ui.homeSubtitleText ??= "";
+  state.ui.homeSubtitleResolvedFor ??= "";
   let tickHandle = null;
   let transitionLock = false;
   let examAnswerGuardTimeoutId = null;
@@ -1360,6 +1408,12 @@ export function createApp(root) {
     }
   }
 
+  function setHomeSubtitleMode(mode = "default") {
+    state.ui.homeSubtitleMode = mode;
+    state.ui.homeSubtitleText = "";
+    state.ui.homeSubtitleResolvedFor = "";
+  }
+
   function refresh() {
     appendCurrentEventMemoIfNeeded();
     ensureTimerRunningWhenToggleDisabled();
@@ -1378,6 +1432,7 @@ export function createApp(root) {
             state.settings = persistRole(value);
             state.roleSelectMode = "change";
             state.screen = "home";
+            setHomeSubtitleMode();
             refresh();
             return;
           }
@@ -1409,6 +1464,7 @@ export function createApp(root) {
 
         state.session = startSession(role, "practice");
         state.screen = "timeline";
+        setHomeSubtitleMode();
         primeSessionImages();
         void activateEvent(getCurrentEvent(state));
       });
@@ -1426,6 +1482,7 @@ export function createApp(root) {
 
         state.session = startSession(role, "exam");
         state.screen = "timeline";
+        setHomeSubtitleMode();
         primeSessionImages();
         void activateEvent(getCurrentEvent(state));
       });
@@ -1435,6 +1492,7 @@ export function createApp(root) {
       performTransition(() => {
         state.roleSelectMode = "change";
         state.screen = "role-select";
+        setHomeSubtitleMode();
         refresh();
       });
     });
@@ -1451,6 +1509,7 @@ export function createApp(root) {
     root.querySelector('[data-action="keep-role"]')?.addEventListener("click", () => {
       performTransition(() => {
         state.screen = "home";
+        setHomeSubtitleMode();
         refresh();
       });
     });
@@ -1464,15 +1523,19 @@ export function createApp(root) {
         abandonSession();
         state.session = null;
         state.screen = "home";
+        setHomeSubtitleMode();
         refresh();
       });
     });
 
     root.querySelector('[data-action="complete-home"]')?.addEventListener("click", () => {
       performTransition(() => {
+        const homeSubtitleMode = getSessionMode(state.session) === "exam" ? "examClear" : "default";
+
         abandonSession();
         state.session = null;
         state.screen = "home";
+        setHomeSubtitleMode(homeSubtitleMode);
         refresh();
       });
     });
@@ -1482,6 +1545,7 @@ export function createApp(root) {
         abandonSession();
         state.session = null;
         state.screen = "home";
+        setHomeSubtitleMode("examFailure");
         refresh();
       });
     });
