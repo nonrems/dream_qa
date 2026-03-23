@@ -7,6 +7,14 @@ import { abandonSession, initializeStore, persistRole, resetHistory, startSessio
 import { renderChoiceButtons, renderChoiceGrid, renderMemoList, renderProgressBar } from "./renderers.js";
 
 const EXAM_ANSWER_INPUT_GUARD_MS = 300;
+const HOME_SUBTITLE_VARIANTS = [
+  "しんどい",
+  "ナイトメアの間違いでは？",
+  "テストプレイ、した？",
+  "先人たち、ありがとね",
+  "マーカー泥棒多発！",
+  "完全に理解した",
+];
 
 const CHOICE_ORDER_KEYS = {
   "q07-next-gimmick-fan": "q07_gimmick",
@@ -773,6 +781,8 @@ function summarizeSessionCategories(session) {
 function renderHomeScreen(state) {
   const role = state.settings.role ?? "未設定";
   const categoryStats = summarizeWeakCategories(state.history);
+  const subtitle =
+    HOME_SUBTITLE_VARIANTS[Math.floor(Math.random() * HOME_SUBTITLE_VARIANTS.length)] ?? HOME_SUBTITLE_VARIANTS[0];
   const categoryStatsMarkup = categoryStats.length
     ? categoryStats
       .map(
@@ -800,7 +810,7 @@ function renderHomeScreen(state) {
       <header class="screen-header">
         <p class="eyebrow">Main</p>
         <h1 class="screen-title">ドリーム予習</h1>
-        <p class="screen-subtitle">(:3[__] ＜ しんどい</p>
+        <p class="screen-subtitle">(:3[__] ＜ ${subtitle}</p>
       </header>
       <div class="summary-box">
         <div class="summary-row">
